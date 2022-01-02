@@ -1,0 +1,45 @@
+package demo.drools
+import cn.stephen.demo.model.dto.LoanAppDTO
+import cn.stephen.demo.service.DaasService
+import cn.stephen.demo.service.RecvService
+import cn.stephen.demo.service.EntService
+import cn.hutool.core.util.StrUtil
+import java.util.Collection
+import cn.hutool.core.bean.BeanUtil
+import cn.hutool.json.JSONUtil
+import cn.stephen.demo.model.dto.RecvInfoDTO
+import cn.stephen.demo.model.enums.BusinessTypeEnum
+import cn.stephen.demo.model.dto.DaasEntInfoDTO
+import java.util.List
+import java.util.ArrayList
+import java.math.BigDecimal
+import cn.stephen.demo.model.entity.Stage
+
+global DaasService daasService;
+global RecvService recvService;
+global EntService entService;
+
+// 定义函数 contain
+function Boolean comtains(Collection collection, Object target, String propertyPath){
+        if (StrUtil.isNotBlank(propertyPath)) {
+            return collection.stream().map(element -> BeanUtil.getProperty(element, propertyPath))
+                   .filter(value -> value != null && value.equals(target)).count() > 0;
+        } else {
+            return collection.contains(target);
+        }
+}
+function String toJsonStr(Object obj){
+       return JSONUtil.toJsonStr(obj);
+}
+
+//演示普通规则
+//  出让金额小于 300000
+rule 'sellAmt must less then 300000'
+    no-loop true
+    lock-on-active true
+    when LoanAppDTO(sellAmt<300000)
+    then
+        System.out.println("LOAN 出让金额小于 300000");
+    end
+
+

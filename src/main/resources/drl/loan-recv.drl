@@ -1,0 +1,61 @@
+package demo.drools
+import cn.stephen.demo.model.dto.LoanAppDTO
+import cn.stephen.demo.service.DaasService
+import cn.stephen.demo.service.RecvService
+import cn.stephen.demo.service.EntService
+import cn.hutool.core.util.StrUtil
+import java.util.Collection
+import cn.hutool.core.bean.BeanUtil
+import cn.hutool.json.JSONUtil
+import cn.stephen.demo.model.dto.RecvInfoDTO
+import cn.stephen.demo.model.enums.BusinessTypeEnum
+import cn.stephen.demo.model.dto.DaasEntInfoDTO
+import java.util.List
+import java.util.ArrayList
+import java.math.BigDecimal
+
+global DaasService daasService;
+global RecvService recvService;
+global EntService entService;
+
+//演示加载数据库数据
+//加载所有的 应收帐
+rule 'load receives'
+    no-loop true
+    lock-on-active true
+    when $loan: LoanAppDTO()
+    then
+        //加载所有的应收帐
+        List<RecvInfoDTO> recvInfoList = recvService.getRecvInfoList($loan.getId());
+        for (RecvInfoDTO $recv : recvInfoList) {
+            insert($recv);
+            drools.setFocus("recv");
+        }
+        System.out.println("RECV 加载到所有应收帐信息");
+    end
+
+// 演示循环
+// 单笔应收账款总金额不得小于 3000
+rule 'show all recveives'
+    agenda-group "recv"
+    no-loop true
+    lock-on-active true
+    when $recv: RecvInfoDTO(recvAmt<3000)
+    then
+        System.out.println("RECV 单笔应收账款总金额不得小于 3000, recvInfo: "+ $recv.getId());
+    end
+
+//演示聚合
+// 应收帐总额应该 等于融资中的总额
+rule 'total amount of recveives equal loanAppInfo.recvTotalAmt'
+    agenda-group "recv"
+    no-loop true
+    lock-on-active true
+    when $loan: LoanAppDTO()
+        and accumulate(
+            RecvInfoDTO($recvAmt: recvAmt);
+             $totalAmt: sum($recvAmt);
+             $totalAmt != $loan.recvTotalAmt)
+    then
+        System.out.println("RECV 应收帐总额与融资应收帐总额不匹配");
+    end

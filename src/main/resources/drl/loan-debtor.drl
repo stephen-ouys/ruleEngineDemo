@@ -1,0 +1,46 @@
+package demo.drools
+import cn.stephen.demo.model.dto.LoanAppDTO
+import cn.stephen.demo.service.DaasService
+import cn.stephen.demo.service.RecvService
+import cn.stephen.demo.service.EntService
+import cn.hutool.core.util.StrUtil
+import java.util.Collection
+import cn.hutool.core.bean.BeanUtil
+import cn.hutool.json.JSONUtil
+import cn.stephen.demo.model.dto.RecvInfoDTO
+import cn.stephen.demo.model.enums.BusinessTypeEnum
+import cn.stephen.demo.model.dto.DaasEntInfoDTO
+import java.util.List
+import java.util.ArrayList
+import java.math.BigDecimal
+
+global DaasService daasService;
+global RecvService recvService;
+global EntService entService;
+
+
+//演示从daas加载数据
+//加载债务人信息
+rule 'load debtor if the borrower is supplier'
+    agenda-group "recv"
+    no-loop true
+    lock-on-active true
+    when LoanAppDTO(businessType == BusinessTypeEnum.FACTORING)
+        and $recv: RecvInfoDTO()
+        and not DaasEntInfoDTO(creditCd==$recv.buyerEntCreditCode)
+    then
+        DaasEntInfoDTO entInfoDTO = daasService.getEntInfo($recv.getBuyerEntCreditCode());
+        System.out.println("DEBTOR 加载到债务人信息: "+ entInfoDTO);
+        insert(entInfoDTO);
+        drools.setFocus("debtor");
+    end
+
+//注册资本必须大于一千万
+rule 'regiser capital of debtor must greater then 10,000,000'
+    agenda-group "debtor"
+    no-loop true
+    lock-on-active true
+    when $entInfo: DaasEntInfoDTO(regCapital<=10000000)
+    then
+        System.out.println("DEBTOR 注册资本必须大于一千万，当前为: "+ $entInfo.getRegCapital());
+     end

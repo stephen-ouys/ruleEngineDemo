@@ -1,0 +1,40 @@
+package demo.drools
+import cn.stephen.demo.model.dto.LoanAppDTO
+import cn.stephen.demo.service.DaasService
+import cn.stephen.demo.service.RecvService
+import cn.stephen.demo.service.StageService
+import cn.hutool.core.util.StrUtil
+import java.util.Collection
+import cn.hutool.core.bean.BeanUtil
+import cn.hutool.json.JSONUtil
+import cn.stephen.demo.model.dto.RecvInfoDTO
+import cn.stephen.demo.model.enums.BusinessTypeEnum
+import cn.stephen.demo.model.dto.DaasEntInfoDTO
+import java.util.List
+import java.util.ArrayList
+import java.math.BigDecimal
+import cn.stephen.demo.model.entity.Stage
+
+global StageService stageService
+
+//  加载项目分期数据
+rule 'load stage'
+    no-loop true
+    lock-on-active true
+    when $loan: LoanAppDTO()
+    then
+        Stage $stage = stageService.getById($loan.getStageId());
+        insert($stage);
+        drools.setFocus("stage");
+        System.out.println("STAGE 加载分期信息");
+    end
+
+//  融资金额必须 <= 应收账款总金额*【最大融资比例】
+rule 'sellAmt must less then recvTotalAmt mutiplying maxFinancePer'
+    agenda-group "stage"
+    no-loop true
+    lock-on-active true
+    when $loan: LoanAppDTO() and Stage($loan.sellAmt<maxFinancePer * $loan.recvTotalAmt)
+    then
+        System.out.println("LOAN 【融资金额】必须小于等于 【应收账款总金额】乘以【最大融资比例】");
+    end

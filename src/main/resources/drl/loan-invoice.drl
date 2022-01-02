@@ -1,0 +1,50 @@
+package demo.drools
+import cn.stephen.demo.model.dto.LoanAppDTO
+import cn.stephen.demo.service.DaasService
+import cn.stephen.demo.service.RecvService
+import cn.stephen.demo.service.InvoiceService
+import cn.hutool.core.util.StrUtil
+import java.util.Collection
+import cn.hutool.core.bean.BeanUtil
+import cn.hutool.json.JSONUtil
+import cn.stephen.demo.model.dto.RecvInfoDTO
+import cn.stephen.demo.model.enums.BusinessTypeEnum
+import cn.stephen.demo.model.dto.DaasEntInfoDTO
+import java.util.List
+import java.util.ArrayList
+import java.math.BigDecimal
+import cn.stephen.demo.model.entity.RecvInvoice
+
+global InvoiceService invoiceService
+
+//  加载项目分期数据
+rule 'load invoices'
+    agenda-group "recv"
+    no-loop true
+    lock-on-active true
+    when $recvIds: List() from accumulate(RecvInfoDTO($id: id), collectList($id))
+    then
+        //加载所有的应收帐
+        List<RecvInvoice> invoices = invoiceService.listByRecvIds($recvIds);
+        for (RecvInvoice $invoice : invoices) {
+            insert($invoice);
+            drools.setFocus("invoice");
+        }
+        System.out.println("INVOICE 加载到所有发票信息");
+    end
+
+
+//  交叉比对是否有重复发票
+rule 'duplication check for invoices'
+    agenda-group "invoice"
+    no-loop true
+    lock-on-active true
+    when $item: RecvInvoice()
+        and accumulate(
+            RecvInvoice(invoiceNo==$item.invoiceNo,invoiceCode==$item.invoiceCode);
+             $count: count();
+             $count >1)
+    then
+        System.out.println("INVOICE 发票号及编码重复-> no: "+$item.getInvoiceNo()+", code: "+ $item.getInvoiceCode());
+    end
+
